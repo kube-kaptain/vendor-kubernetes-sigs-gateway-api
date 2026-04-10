@@ -6,12 +6,11 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     api-approved.kubernetes.io: https://github.com/kubernetes-sigs/gateway-api/pull/3328
-    gateway.networking.k8s.io/bundle-version: v1.3.0
+    gateway.networking.k8s.io/bundle-version: v1.4.0
     gateway.networking.k8s.io/channel: standard
     kaptain.org/environment: ${Environment}
     app.kubernetes.io/managed-by: Kaptain
     app.kubernetes.io/version: ${Version}
-  creationTimestamp: null
   name: referencegrants.gateway.networking.k8s.io
   labels:
     kaptain.org/environment: ${Environment}
@@ -133,6 +132,7 @@ spec:
                   maxItems: 16
                   minItems: 1
                   type: array
+                  x-kubernetes-list-type: atomic
                 to:
                   description: |-
                     To describes the resources that may be referenced by the resources
@@ -182,6 +182,7 @@ spec:
                   maxItems: 16
                   minItems: 1
                   type: array
+                  x-kubernetes-list-type: atomic
               required:
                 - from
                 - to
