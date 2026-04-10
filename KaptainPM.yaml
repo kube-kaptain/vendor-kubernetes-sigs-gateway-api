@@ -1,0 +1,23 @@
+apiVersion: kaptain.org/1.7
+kind: kubernetes-app-manifests-only
+metadata:
+  description: "Vendored Kubernetes Gateway API CRDs"
+
+spec:
+  layers:
+    - layer-github-flow-strict:[1.2,2.0)
+  main:
+    hooks:
+      preTaggingTests: .github/bin/update-gateway-api.bash
+  global:
+    release:
+      versioning:
+        maxParts: '4'
+        strategy: file-pattern-match
+        patternType: custom
+        source:
+          subPath: src/config
+          fileName: GatewayApiVersion
+          pattern: '^([0-9]+\.[0-9]+\.[0-9]+)$'
+          prefixParts: '3'
+        useSourceVersionExact: false

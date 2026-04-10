@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025-2026 Kaptain contributors (Fred Cooke)
+#
+# Downloads Gateway API standard-install.yaml for the version in src/config/GatewayApiVersion,
+# splits it into individual manifests in src/kubernetes/. In CI, the build validates that
+# committed files match by checking for git diffs after running this script.
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+VERSION_FILE="${REPO_ROOT}/src/config/GatewayApiVersion"
+KUBERNETES_DIR="${REPO_ROOT}/src/kubernetes"
+OUTPUT_SUB_PATH="${OUTPUT_SUB_PATH:-kaptain-out}"
+GATEWAY_DIR="${OUTPUT_SUB_PATH}/gateway-api"
+ONEFILE_DIR="${GATEWAY_DIR}/onefile"
+SPLIT_DIR="${GATEWAY_DIR}/split"
+RENAMED_DIR="${GATEWAY_DIR}/renamed"
+
+# 1. Read version
+if [[ ! -f "${VERSION_FILE}" ]]; then
+  echo "ERROR: Version file not found: ${VERSION_FILE}"
+  exit 1
+fi
+VERSION="$(cat "${VERSION_FILE}" | tr -d '[:space:]')"
+echo "Gateway API version: ${VERSION}"
+
+# 2. Download standard-install.yaml
+DOWNLOAD_URL="https://github.com/kubernetes-sigs/gateway-api/releases/download/v${VERSION}/standard-install.yaml"
+echo "Downloading: ${DOWNLOAD_URL}"
+rm -rf "${GATEWAY_DIR}"
+mkdir -p "${ONEFILE_DIR}" "${SPLIT_DIR}" "${RENAMED_DIR}"
+
+BUNDLE="${ONEFILE_DIR}/standard-install.yaml"
+if ! curl -sfL "${DOWNLOAD_URL}" -o "${BUNDLE}"; then
+  echo "ERROR: Failed to download standard-install.yaml for v${VERSION}"
+  exit 1
+fi
+echo "Downloaded successfully."
+
+# 3. Split into individual documents
+cd "${SPLIT_DIR}"
+yq eval-all --split-exp '"doc-" + $index' --no-doc "${REPO_ROOT}/${BUNDLE}" -o yaml
+
+# 4. Rename and add kaptain environment annotation
+for doc_file in doc-*; do
+  KIND="$(yq eval '.kind' "${doc_file}")"
+  NAME="$(yq eval '.metadata.name' "${doc_file}")"
+
+  if [[ "${KIND}" == "null" || "${NAME}" == "null" ]]; then
+    echo "WARNING: Skipping document with missing kind or name"
+    continue
+  fi
+
+  # Add kaptain environment label and annotation for cluster-global resources
+  yq eval -i '
+    .metadata.labels."kaptain.org/environment" = "${Environment}" |
+    .metadata.labels."app.kubernetes.io/managed-by" = "Kaptain" |
+    .metadata.labels."app.kubernetes.io/version" = "${Version}" |
+    .metadata.annotations."kaptain.org/environment" = "${Environment}" |
+    .metadata.annotations."app.kubernetes.io/managed-by" = "Kaptain" |
+    .metadata.annotations."app.kubernetes.io/version" = "${Version}"
+  ' "${doc_file}"
+
+  # Derive filename: lowercase kind, short resource name
+  KIND_LOWER="$(echo "${KIND}" | tr '[:upper:]' '[:lower:]')"
+  NAME_SHORT="${NAME%.gateway.networking.k8s.io}"
+  NAME_SHORT="${NAME_SHORT%.gateway.networking.x-k8s.io}"
+
+  RENAMED_FILE="${REPO_ROOT}/${RENAMED_DIR}/${KIND_LOWER}-${NAME_SHORT}.yaml"
+  cp "${doc_file}" "${RENAMED_FILE}"
+  echo "  ${KIND_LOWER}-${NAME_SHORT}.yaml"
+done
+
+cd "${REPO_ROOT}"
+
+# 5. Copy final form to src/kubernetes/
+rm -f "${KUBERNETES_DIR}"/*.yaml
+mkdir -p "${KUBERNETES_DIR}"
+cp "${RENAMED_DIR}"/*.yaml "${KUBERNETES_DIR}/"
+echo
+echo "Manifests written to src/kubernetes/"
+
+# 6. Validate no differences with committed files
+if [[ -n "$(git diff --name-only -- src/kubernetes/)" ]] || [[ -n "$(git ls-files --others --exclude-standard -- src/kubernetes/)" ]]; then
+  echo
+  echo "FAILED: Generated manifests differ from committed files:"
+  git diff --stat -- src/kubernetes/
+  git ls-files --others --exclude-standard -- src/kubernetes/
+  echo
+  echo "Run .github/bin/update-gateway-api.bash locally and commit the results."
+  exit 1
+fi
+
+echo "All manifests match. Validation passed."
