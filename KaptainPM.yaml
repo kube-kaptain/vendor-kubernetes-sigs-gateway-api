@@ -7,6 +7,13 @@ spec:
   layers:
     - layer-github-flow-strict:[1.2,2.0)
   main:
+    generators:
+      workload:
+        type: none
+      service:
+        enabled: 'false'
+      podDisruptionBudget:
+        enabled: 'false'
     hooks:
       preTaggingTests: .github/bin/update-gateway-api.bash
   global:
