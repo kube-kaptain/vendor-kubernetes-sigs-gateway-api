@@ -1,11 +1,11 @@
-apiVersion: kaptain.org/1.7
+apiVersion: kaptain.org/1.11
 kind: kubernetes-app-manifests-only
 metadata:
   description: "Vendored Kubernetes Gateway API CRDs"
 
 spec:
   layers:
-    - layer-github-flow-strict:[1.2,2.0)
+    - layer-github-flow-strict:[1.3,2.0)
   main:
     generators:
       workload:
