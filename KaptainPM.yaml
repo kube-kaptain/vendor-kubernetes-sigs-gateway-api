@@ -1,4 +1,4 @@
-apiVersion: kaptain.org/1.16
+apiVersion: kaptain.org/1.18
 kind: kubernetes-bundle-resources
 metadata:
   description: "Vendored Kubernetes Gateway API CRDs"
