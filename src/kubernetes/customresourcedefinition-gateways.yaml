@@ -6,8 +6,8 @@ kind: CustomResourceDefinition
 metadata:
   name: gateways.gateway.networking.k8s.io
   labels:
-    app: gateways.gateway.networking.k8s.io
-    app.kubernetes.io/name: gateways.gateway.networking.k8s.io
+    app: ${ProjectName}
+    app.kubernetes.io/name: ${ProjectName}
     app.kubernetes.io/version: ${Version}
     app.kubernetes.io/managed-by: Kaptain
     app.kubernetes.io/part-of: ${ProductName}

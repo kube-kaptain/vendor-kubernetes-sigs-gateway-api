@@ -54,8 +54,8 @@ for doc_file in doc-*; do
   fi
 
   yq eval -i '
-    .metadata.labels.app = .metadata.name |
-    .metadata.labels."app.kubernetes.io/name" = .metadata.name |
+    .metadata.labels.app = "${ProjectName}" |
+    .metadata.labels."app.kubernetes.io/name" = "${ProjectName}" |
     .metadata.labels."app.kubernetes.io/version" = "${Version}" |
     .metadata.labels."app.kubernetes.io/managed-by" = "Kaptain" |
     .metadata.labels."app.kubernetes.io/part-of" = "${ProductName}" |
